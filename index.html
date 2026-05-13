@@ -212,6 +212,25 @@ header{background:linear-gradient(135deg,var(--navy) 0%,var(--navy-light) 100%);
   .cred-label{flex:0 0 160px;}
   .detail-header{flex-wrap:wrap;}
 }
+/* ── Documents Tab ── */
+.doc-upload-zone{border:2px dashed var(--border);border-radius:10px;padding:28px;text-align:center;cursor:pointer;transition:all .15s;background:#fafcff;margin-bottom:16px;}
+.doc-upload-zone:hover,.doc-upload-zone.dragover{border-color:var(--teal);background:var(--teal-light);}
+.doc-upload-icon{font-size:2rem;margin-bottom:8px;}
+.doc-upload-text{font-size:.85rem;color:var(--muted);line-height:1.6;}
+.doc-upload-text strong{color:var(--teal);cursor:pointer;}
+.doc-list{display:flex;flex-direction:column;gap:8px;}
+.doc-item{background:var(--card);border:1px solid var(--border);border-radius:9px;padding:11px 14px;display:flex;align-items:center;gap:12px;}
+.doc-item:hover{background:#f8fafc;}
+.doc-icon{font-size:1.5rem;flex-shrink:0;width:36px;text-align:center;}
+.doc-info{flex:1;min-width:0;}
+.doc-name{font-size:.83rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.doc-meta{font-size:.7rem;color:var(--muted);margin-top:2px;}
+.doc-cat{display:inline-block;padding:1px 7px;border-radius:99px;font-size:.65rem;font-weight:700;background:#f1f5f9;color:var(--muted);margin-right:6px;}
+.doc-actions{display:flex;gap:5px;flex-shrink:0;}
+.doc-count-badge{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;background:var(--teal);color:#fff;border-radius:99px;font-size:.6rem;font-weight:800;margin-left:4px;vertical-align:middle;}
+.doc-section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.doc-size-warning{background:var(--warning-bg);color:var(--warning);font-size:.72rem;padding:7px 12px;border-radius:7px;margin-bottom:12px;}
+
 @media print{
   header .btn-outline,.toolbar,.card-actions,.detail-actions,.tab-bar,.icon-btn,#loginGate{display:none!important;}
   body{background:#fff;}
@@ -299,14 +318,90 @@ header{background:linear-gradient(135deg,var(--navy) 0%,var(--navy-light) 100%);
       <button class="tab-btn active" onclick="showTab('creds',this)">Credentials</button>
       <button class="tab-btn" onclick="showTab('privileges',this)">Privileges</button>
       <button class="tab-btn" onclick="showTab('oppe',this)">OPPE / FPPE</button>
+      <button class="tab-btn" onclick="showTab('documents',this)" id="docsTabBtn">Documents</button>
       <button class="tab-btn" onclick="showTab('notes',this)">Notes</button>
     </div>
     <div id="tabCreds"></div>
     <div id="tabPrivileges" style="display:none;"></div>
     <div id="tabOppe" style="display:none;"></div>
+    <div id="tabDocuments" style="display:none;"></div>
     <div id="tabNotes" style="display:none;"></div>
   </div>
 
+</div>
+
+<!-- ── Document Upload Modal ── -->
+<div class="modal-overlay hidden" id="docModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="docModalTitle">Add Document</h3>
+      <button class="modal-close" onclick="closeModal('docModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Document Name <span class="req">*</span></label>
+        <input type="text" id="docName" placeholder="e.g., State Medical License — TX 2025"/>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Category</label>
+          <select id="docCategory">
+            <option value="License">License</option>
+            <option value="Certification">Certification</option>
+            <option value="Insurance">Insurance / Malpractice</option>
+            <option value="Background Check">Background Check</option>
+            <option value="Immunization">Immunization / Health</option>
+            <option value="OPPE/FPPE">OPPE / FPPE</option>
+            <option value="Privilege Form">Privilege Delineation Form</option>
+            <option value="Reference">Peer Reference</option>
+            <option value="Contract">Contract / Agreement</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Date Added</label>
+          <input type="date" id="docDate"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Notes / Description</label>
+        <textarea id="docNotes" placeholder="Optional notes about this document…"></textarea>
+      </div>
+
+      <div class="form-section-title">Attach Document</div>
+      <div style="display:flex;gap:10px;margin-bottom:14px;">
+        <button class="btn btn-sm" id="docTypeFileBtn" onclick="switchDocType('file')" style="background:var(--navy);color:#fff;border:none;">📁 Upload File</button>
+        <button class="btn btn-sm btn-ghost" id="docTypeLinkBtn" onclick="switchDocType('link')">🔗 External Link</button>
+      </div>
+
+      <!-- File upload -->
+      <div id="docFileSection">
+        <div class="doc-size-warning">⚠️ Files are stored in your browser's local storage. Keep uploads under 2MB each (PDFs, images). For larger files, use the External Link option instead.</div>
+        <div class="doc-upload-zone" id="dropZone" onclick="document.getElementById('docFileInput').click()" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="handleFileDrop(event)">
+          <div class="doc-upload-icon">📂</div>
+          <div class="doc-upload-text">
+            <strong>Click to browse</strong> or drag &amp; drop a file here<br>
+            PDF, JPG, PNG, DOCX — max 2MB
+          </div>
+          <div id="docFilePreview" style="margin-top:10px;font-size:.8rem;color:var(--teal);font-weight:600;"></div>
+        </div>
+        <input type="file" id="docFileInput" style="display:none;" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.gif" onchange="handleFileSelect(this)"/>
+      </div>
+
+      <!-- External link -->
+      <div id="docLinkSection" style="display:none;">
+        <div class="form-group">
+          <label>Document URL</label>
+          <input type="url" id="docUrl" placeholder="https://drive.google.com/… or SharePoint, Dropbox link"/>
+        </div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:-6px;">Paste a shareable link from Google Drive, SharePoint, Dropbox, or any accessible URL.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('docModal')">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="saveDocument()">Save Document</button>
+    </div>
+  </div>
 </div>
 
 <!-- ── Add/Edit Provider Modal ── -->
@@ -870,6 +965,11 @@ function openProvider(id) {
   showTab('creds', document.querySelector('.tab-btn'));
   renderDetailHeader();
   renderCredTab();
+  // Update documents tab badge
+  const p = loadProviders().find(x => x.id === id);
+  const docCount = (p && p.documents) ? p.documents.length : 0;
+  const tabBtn = document.getElementById('docsTabBtn');
+  if (tabBtn) tabBtn.innerHTML = `Documents${docCount?`<span class="doc-count-badge">${docCount}</span>`:''}`;
 }
 
 function showDashboard() {
@@ -913,13 +1013,14 @@ function showTab(tab, btn) {
   activeTab = tab;
   document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  ['creds','privileges','oppe','notes'].forEach(t => {
+  ['creds','privileges','oppe','documents','notes'].forEach(t => {
     const el = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
     if (el) el.style.display = t === tab ? 'block' : 'none';
   });
   if (tab === 'creds') renderCredTab();
   if (tab === 'privileges') renderPrivilegesTab();
   if (tab === 'oppe') renderOppeTab();
+  if (tab === 'documents') renderDocumentsTab();
   if (tab === 'notes') renderNotesTab();
 }
 
@@ -1303,6 +1404,207 @@ function saveOppe() {
   renderOppeTab();
 }
 
+// ─── Documents Tab ───────────────────────────────────────────────────────────
+let docUploadType = 'file';
+let docFileData = null; // {name, type, size, base64}
+
+const DOC_CATEGORY_ICONS = {
+  'License':'🪪', 'Certification':'🏆', 'Insurance':'🛡️',
+  'Background Check':'🔍', 'Immunization':'💉', 'OPPE/FPPE':'📊',
+  'Privilege Form':'📝', 'Reference':'👥', 'Contract':'📃', 'Other':'📄'
+};
+
+function renderDocumentsTab() {
+  const p = loadProviders().find(x => x.id === currentProviderId);
+  if (!p) return;
+  const docs = p.documents || [];
+
+  // Update tab badge
+  const tabBtn = document.getElementById('docsTabBtn');
+  if (tabBtn) tabBtn.innerHTML = `Documents${docs.length?`<span class="doc-count-badge">${docs.length}</span>`:''}`;
+
+  let html = `<div class="doc-section-header">
+    <div style="font-size:.82rem;color:var(--muted);">${docs.length} document${docs.length!==1?'s':''} on file</div>
+    <button class="btn btn-primary btn-sm" onclick="openAddDocument()">+ Add Document</button>
+  </div>`;
+
+  // Storage estimate
+  const totalChars = JSON.stringify(p.documents||[]).length;
+  const estKB = Math.round(totalChars / 1024 * 0.75);
+  if (estKB > 1500) {
+    html += `<div class="doc-size-warning">⚠️ Document storage is ${estKB}KB. Consider switching large files to External Links to free up space.</div>`;
+  }
+
+  if (!docs.length) {
+    html += `<div class="empty-state"><div style="font-size:3rem;margin-bottom:12px;">📂</div><p>No documents uploaded yet.<br>Add licenses, certificates, insurance cards, and more.</p></div>`;
+    document.getElementById('tabDocuments').innerHTML = html;
+    return;
+  }
+
+  // Group by category
+  const grouped = {};
+  docs.forEach((d, idx) => {
+    const cat = d.category || 'Other';
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push({...d, idx});
+  });
+
+  html += `<div class="doc-list">`;
+  Object.entries(grouped).forEach(([cat, items]) => {
+    html += `<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;font-weight:700;color:var(--muted);margin:10px 0 6px;">${DOC_CATEGORY_ICONS[cat]||'📄'} ${cat}</div>`;
+    items.forEach(d => {
+      const icon = d.type === 'link' ? '🔗' : getFileIcon(d.fileType||'');
+      const sizeTxt = d.fileSizeKB ? ` · ${d.fileSizeKB}KB` : '';
+      html += `<div class="doc-item">
+        <div class="doc-icon">${icon}</div>
+        <div class="doc-info">
+          <div class="doc-name" title="${d.name}">${d.name}</div>
+          <div class="doc-meta">
+            <span class="doc-cat">${d.category||'Other'}</span>
+            Uploaded ${fmtDate(d.dateAdded)}${sizeTxt}
+            ${d.notes?`<br><em>${d.notes}</em>`:''}
+          </div>
+        </div>
+        <div class="doc-actions">
+          ${d.type==='link'
+            ? `<button class="icon-btn btn-sm" title="Open Link" onclick="openDocLink('${d.idx}')">🔗</button>`
+            : `<button class="icon-btn btn-sm" title="View / Download" onclick="downloadDoc(${d.idx})">⬇️</button>`
+          }
+          <button class="icon-btn btn-sm" title="Delete" onclick="deleteDocument(${d.idx})" style="color:var(--danger)">🗑</button>
+        </div>
+      </div>`;
+    });
+  });
+  html += `</div>`;
+  document.getElementById('tabDocuments').innerHTML = html;
+}
+
+function getFileIcon(mimeOrExt) {
+  const s = (mimeOrExt||'').toLowerCase();
+  if (s.includes('pdf')) return '📑';
+  if (s.includes('image')||s.includes('jpg')||s.includes('jpeg')||s.includes('png')||s.includes('gif')) return '🖼️';
+  if (s.includes('word')||s.includes('doc')) return '📝';
+  if (s.includes('sheet')||s.includes('excel')||s.includes('xls')) return '📊';
+  return '📄';
+}
+
+function openAddDocument() {
+  docFileData = null;
+  docUploadType = 'file';
+  document.getElementById('docName').value = '';
+  document.getElementById('docCategory').value = 'License';
+  document.getElementById('docDate').value = today();
+  document.getElementById('docNotes').value = '';
+  document.getElementById('docUrl').value = '';
+  document.getElementById('docFilePreview').textContent = '';
+  document.getElementById('docFileInput').value = '';
+  switchDocType('file');
+  openModal('docModal');
+}
+
+function switchDocType(type) {
+  docUploadType = type;
+  document.getElementById('docFileSection').style.display = type==='file' ? 'block' : 'none';
+  document.getElementById('docLinkSection').style.display = type==='link' ? 'block' : 'none';
+  document.getElementById('docTypeFileBtn').style.cssText = type==='file'?'background:var(--navy);color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:.75rem;font-weight:600;cursor:pointer;':'background:transparent;color:var(--muted);border:1px solid var(--border);padding:5px 10px;border-radius:6px;font-size:.75rem;font-weight:600;cursor:pointer;';
+  document.getElementById('docTypeLinkBtn').style.cssText = type==='link'?'background:var(--navy);color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:.75rem;font-weight:600;cursor:pointer;':'background:transparent;color:var(--muted);border:1px solid var(--border);padding:5px 10px;border-radius:6px;font-size:.75rem;font-weight:600;cursor:pointer;';
+}
+
+function handleFileSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  processFile(file);
+}
+
+function handleFileDrop(event) {
+  event.preventDefault();
+  document.getElementById('dropZone').classList.remove('dragover');
+  const file = event.dataTransfer.files[0];
+  if (file) processFile(file);
+}
+
+function processFile(file) {
+  const maxBytes = 2 * 1024 * 1024; // 2MB
+  if (file.size > maxBytes) {
+    alert('File is too large (' + Math.round(file.size/1024) + 'KB). Please upload files under 2MB, or use an External Link instead.');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    docFileData = { name: file.name, fileType: file.type, fileSizeKB: Math.round(file.size/1024), base64: e.target.result };
+    document.getElementById('docFilePreview').textContent = '✅ ' + file.name + ' (' + docFileData.fileSizeKB + 'KB) — ready to save';
+    // Auto-fill document name if empty
+    if (!document.getElementById('docName').value) {
+      document.getElementById('docName').value = file.name.replace(/\.[^.]+$/, '');
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function saveDocument() {
+  const name = document.getElementById('docName').value.trim();
+  if (!name) { alert('Please enter a document name.'); return; }
+
+  let doc = {
+    name,
+    category: document.getElementById('docCategory').value,
+    dateAdded: document.getElementById('docDate').value || today(),
+    notes: document.getElementById('docNotes').value.trim(),
+  };
+
+  if (docUploadType === 'file') {
+    if (!docFileData) { alert('Please select a file to upload.'); return; }
+    doc.type = 'file';
+    doc.fileName = docFileData.name;
+    doc.fileType = docFileData.fileType;
+    doc.fileSizeKB = docFileData.fileSizeKB;
+    doc.base64 = docFileData.base64;
+  } else {
+    const url = document.getElementById('docUrl').value.trim();
+    if (!url) { alert('Please enter a URL for the external link.'); return; }
+    doc.type = 'link';
+    doc.url = url;
+  }
+
+  const providers = loadProviders();
+  const p = providers.find(x => x.id === currentProviderId);
+  if (!p) return;
+  if (!p.documents) p.documents = [];
+  p.documents.push(doc);
+  saveProviders(providers);
+  closeModal('docModal');
+  renderDocumentsTab();
+}
+
+function downloadDoc(idx) {
+  const p = loadProviders().find(x => x.id === currentProviderId);
+  if (!p) return;
+  const doc = (p.documents||[])[idx];
+  if (!doc || !doc.base64) return;
+  const a = document.createElement('a');
+  a.href = doc.base64;
+  a.download = doc.fileName || doc.name;
+  a.click();
+}
+
+function openDocLink(idx) {
+  const p = loadProviders().find(x => x.id === currentProviderId);
+  if (!p) return;
+  const doc = (p.documents||[])[idx];
+  if (!doc || !doc.url) return;
+  window.open(doc.url, '_blank');
+}
+
+function deleteDocument(idx) {
+  if (!confirm('Delete this document? This cannot be undone.')) return;
+  const providers = loadProviders();
+  const p = providers.find(x => x.id === currentProviderId);
+  if (!p) return;
+  p.documents.splice(idx, 1);
+  saveProviders(providers);
+  renderDocumentsTab();
+}
+
 // ─── Export ───────────────────────────────────────────────────────────────────
 function exportCSV() {
   const providers = loadProviders();
@@ -1329,7 +1631,7 @@ function exportCSV() {
 // ─── Modal Helpers ────────────────────────────────────────────────────────────
 function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
-document.addEventListener('keydown', e => { if (e.key==='Escape') ['credModal','providerModal','privModal','oppeModal'].forEach(closeModal); });
+document.addEventListener('keydown', e => { if (e.key==='Escape') ['credModal','providerModal','privModal','oppeModal','docModal'].forEach(closeModal); });
 
 // ─── Clock ────────────────────────────────────────────────────────────────────
 function startClock() {
