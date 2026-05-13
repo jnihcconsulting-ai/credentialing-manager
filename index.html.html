@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Provider Credentialing Manager — JNI Consulting</title>
+<style>
+:root {
+  --navy: #1e3a5f; --navy-light: #2d5282; --teal: #0891b2; --teal-light: #e0f7fa;
+  --success: #16a34a; --success-bg: #dcfce7; --warning: #d97706; --warning-bg: #fef3c7;
+  --danger: #dc2626; --danger-bg: #fee2e2; --purple: #7c3aed; --purple-bg: #ede9fe;
+  --bg: #f0f4f8; --card: #fff; --border: #d1dde8; --text: #1e293b; --muted: #64748b;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* ── Login Gate ── */
+#loginGate{position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#0f1f35 0%,#1e3a5f 60%,#0891b2 100%);display:flex;align-items:center;justify-content:center;padding:20px;}
+#loginGate.hidden{display:none;}
+.login-card{background:#fff;border-radius:18px;padding:40px 36px;max-width:420px;width:100%;box-shadow:0 30px 80px rgba(0,0,0,.4);text-align:center;}
+.login-logo{width:64px;height:64px;background:linear-gradient(135deg,#1e3a5f,#0891b2);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;font-size:2rem;}
+.login-title{font-size:1.3rem;font-weight:800;color:#1e293b;margin-bottom:4px;}
+.login-sub{font-size:.83rem;color:#64748b;margin-bottom:24px;line-height:1.6;}
+.login-field{margin-bottom:13px;text-align:left;}
+.login-field label{display:block;font-size:.78rem;font-weight:700;color:#475569;margin-bottom:4px;}
+.login-field input{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:.9rem;outline:none;transition:border-color .15s;}
+.login-field input:focus{border-color:var(--teal);}
+.login-field input.error{border-color:var(--danger);}
+.login-error{font-size:.78rem;color:var(--danger);font-weight:600;min-height:18px;margin-bottom:10px;}
+.login-btn{width:100%;padding:12px;background:linear-gradient(135deg,#1e3a5f,#0891b2);color:#fff;border:none;border-radius:9px;font-size:1rem;font-weight:700;cursor:pointer;margin-bottom:14px;transition:opacity .15s;}
+.login-btn:hover{opacity:.9;}
+.login-footer{font-size:.72rem;color:#94a3b8;}
+
+/* ── Header ── */
+header{background:linear-gradient(135deg,var(--navy) 0%,var(--navy-light) 100%);color:#fff;padding:13px 22px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,.25);position:sticky;top:0;z-index:100;}
+.header-logo{display:flex;align-items:center;gap:11px;}
+.header-logo svg{width:32px;height:32px;flex-shrink:0;}
+.header-logo h1{font-size:1.15rem;font-weight:700;line-height:1.2;}
+.header-logo h1 span{font-size:.78rem;font-weight:400;opacity:.85;display:block;}
+.header-right{display:flex;align-items:center;gap:10px;}
+#hdrDateTime{font-size:.75rem;opacity:.85;text-align:right;line-height:1.5;}
+.btn{padding:7px 14px;border:none;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;transition:all .15s;}
+.btn-outline{background:transparent;border:1.5px solid rgba(255,255,255,.55);color:#fff;}
+.btn-outline:hover{background:rgba(255,255,255,.15);}
+.btn-primary{background:var(--teal);color:#fff;}
+.btn-primary:hover{background:#0e7490;}
+.btn-danger{background:var(--danger);color:#fff;}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{background:#f1f5f9;}
+.btn-sm{padding:5px 10px;font-size:.75rem;}
+
+/* ── Layout ── */
+.app-body{max-width:1500px;margin:0 auto;padding:18px 20px;}
+
+/* ── Dashboard stats ── */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:13px;margin-bottom:20px;}
+.stat-card{background:var(--card);border-radius:10px;padding:15px 17px;border:1px solid var(--border);display:flex;align-items:center;gap:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+.stat-icon{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;}
+.stat-label{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;}
+.stat-value{font-size:1.6rem;font-weight:800;line-height:1.1;}
+.stat-sub{font-size:.7rem;color:var(--muted);}
+
+/* ── Toolbar ── */
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
+.toolbar-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.search-box{display:flex;align-items:center;background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:0 12px;gap:7px;}
+.search-box input{border:none;outline:none;padding:8px 0;font-size:.85rem;width:200px;background:transparent;}
+.filter-tabs{display:flex;gap:3px;background:#fff;padding:4px;border-radius:8px;border:1px solid var(--border);}
+.filter-tab{padding:5px 13px;border-radius:6px;border:none;background:transparent;cursor:pointer;font-size:.8rem;font-weight:600;color:var(--muted);transition:all .15s;}
+.filter-tab.active{background:var(--navy);color:#fff;}
+
+/* ── Provider Grid ── */
+.provider-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;}
+.provider-card{background:var(--card);border-radius:12px;border:1px solid var(--border);overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06);cursor:pointer;transition:box-shadow .15s,transform .1s;}
+.provider-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.12);transform:translateY(-1px);}
+.provider-card.status-expired{border-left:4px solid var(--danger);}
+.provider-card.status-expiring{border-left:4px solid var(--warning);}
+.provider-card.status-current{border-left:4px solid var(--success);}
+.provider-card.status-incomplete{border-left:4px solid #94a3b8;}
+.card-header{padding:14px 16px 10px;display:flex;align-items:flex-start;gap:12px;}
+.provider-avatar{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:800;color:#fff;flex-shrink:0;}
+.card-info{flex:1;min-width:0;}
+.card-name{font-size:.95rem;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.card-specialty{font-size:.75rem;color:var(--muted);margin-top:2px;}
+.card-npi{font-size:.7rem;color:var(--muted);}
+.type-badge{padding:3px 8px;border-radius:99px;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;}
+.card-alerts{padding:8px 16px;border-top:1px solid #f1f5f9;display:flex;gap:8px;flex-wrap:wrap;}
+.alert-chip{padding:3px 8px;border-radius:99px;font-size:.68rem;font-weight:700;display:flex;align-items:center;gap:4px;}
+.chip-expired{background:var(--danger-bg);color:var(--danger);}
+.chip-expiring{background:var(--warning-bg);color:var(--warning);}
+.chip-current{background:var(--success-bg);color:var(--success);}
+.chip-psv{background:var(--purple-bg);color:var(--purple);}
+.card-footer{padding:10px 16px;border-top:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;}
+.card-reappt{font-size:.72rem;color:var(--muted);}
+.card-reappt strong{color:var(--text);}
+.card-actions{display:flex;gap:6px;}
+.icon-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.85rem;transition:all .15s;}
+.icon-btn:hover{background:#f1f5f9;}
+
+/* ── Provider Detail View ── */
+#detailView{display:none;}
+.detail-header{background:var(--card);border-radius:12px;border:1px solid var(--border);padding:20px;margin-bottom:16px;display:flex;align-items:center;gap:16px;}
+.detail-avatar{width:64px;height:64px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;font-weight:800;color:#fff;flex-shrink:0;}
+.detail-info{flex:1;min-width:0;}
+.detail-name{font-size:1.3rem;font-weight:800;}
+.detail-meta{font-size:.82rem;color:var(--muted);margin-top:3px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.detail-meta span{display:flex;align-items:center;gap:4px;}
+.detail-status-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.status-pill{padding:4px 12px;border-radius:99px;font-size:.75rem;font-weight:700;}
+.pill-expired{background:var(--danger-bg);color:var(--danger);}
+.pill-expiring{background:var(--warning-bg);color:var(--warning);}
+.pill-current{background:var(--success-bg);color:var(--success);}
+.pill-psv{background:var(--purple-bg);color:var(--purple);}
+.detail-actions{display:flex;flex-direction:column;gap:8px;flex-shrink:0;}
+
+/* ── Detail Tabs ── */
+.tab-bar{display:flex;gap:3px;background:var(--card);padding:5px;border-radius:10px;border:1px solid var(--border);margin-bottom:16px;width:fit-content;}
+.tab-btn{padding:7px 18px;border-radius:7px;border:none;background:transparent;cursor:pointer;font-size:.85rem;font-weight:600;color:var(--muted);transition:all .15s;}
+.tab-btn.active{background:var(--navy);color:#fff;}
+
+/* ── Credential Sections ── */
+.cred-section{background:var(--card);border-radius:12px;border:1px solid var(--border);margin-bottom:14px;overflow:hidden;}
+.cred-section-header{padding:11px 16px;background:#f8fafc;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.cred-section-title{font-size:.8rem;text-transform:uppercase;letter-spacing:.07em;font-weight:700;color:var(--muted);}
+.cred-section-summary{font-size:.72rem;color:var(--muted);}
+.cred-item{display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid #f8fafc;transition:background .1s;}
+.cred-item:last-child{border-bottom:none;}
+.cred-item:hover{background:#f8fafc;}
+.cred-status-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.dot-expired{background:var(--danger);}
+.dot-expiring{background:var(--warning);}
+.dot-current{background:var(--success);}
+.dot-empty{background:#cbd5e1;}
+.dot-psv{background:var(--purple);}
+.cred-label{font-size:.82rem;font-weight:600;flex:0 0 220px;}
+.cred-value{font-size:.78rem;color:var(--muted);flex:1;min-width:0;}
+.cred-exp{font-size:.75rem;font-weight:600;white-space:nowrap;flex:0 0 130px;}
+.exp-expired{color:var(--danger);}
+.exp-expiring{color:var(--warning);}
+.exp-current{color:var(--success);}
+.exp-na{color:#94a3b8;}
+.psv-badge{font-size:.65rem;padding:2px 6px;border-radius:4px;font-weight:700;white-space:nowrap;}
+.psv-verified{background:var(--success-bg);color:var(--success);}
+.psv-pending{background:var(--purple-bg);color:var(--purple);}
+.psv-failed{background:var(--danger-bg);color:var(--danger);}
+.psv-na{background:#f1f5f9;color:#94a3b8;}
+
+/* ── Privileges Tab ── */
+.privilege-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;}
+.privilege-item{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;}
+.priv-info{flex:1;}
+.priv-name{font-size:.82rem;font-weight:600;}
+.priv-meta{font-size:.7rem;color:var(--muted);}
+.priv-status{padding:2px 7px;border-radius:99px;font-size:.65rem;font-weight:700;}
+.priv-approved{background:var(--success-bg);color:var(--success);}
+.priv-pending{background:var(--warning-bg);color:var(--warning);}
+.priv-suspended{background:var(--danger-bg);color:var(--danger);}
+.empty-state{padding:40px;text-align:center;color:var(--muted);}
+.empty-state svg{width:48px;height:48px;margin:0 auto 12px;display:block;opacity:.3;}
+.empty-state p{font-size:.9rem;}
+
+/* ── OPPE Tab ── */
+.oppe-card{background:var(--card);border-radius:12px;border:1px solid var(--border);padding:20px;margin-bottom:14px;}
+.oppe-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-top:14px;}
+.oppe-metric{background:#f8fafc;border-radius:8px;padding:12px 14px;text-align:center;}
+.oppe-metric-val{font-size:1.6rem;font-weight:800;color:var(--navy);}
+.oppe-metric-lbl{font-size:.72rem;color:var(--muted);font-weight:600;}
+
+/* ── Modal ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px;}
+.modal-overlay.hidden{display:none;}
+.modal{background:#fff;border-radius:14px;width:100%;max-width:560px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+.modal-lg{max-width:720px;}
+.modal-header{padding:16px 20px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.modal-header h3{font-size:.95rem;font-weight:700;}
+.modal-close{width:28px;height:28px;border-radius:6px;border:none;background:#f1f5f9;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;}
+.modal-body{padding:16px 20px;overflow-y:auto;flex:1;}
+.modal-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.form-row-3{grid-template-columns:1fr 1fr 1fr;}
+.form-group{margin-bottom:12px;}
+.form-group.full{grid-column:1/-1;}
+.form-group label{display:block;font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:4px;}
+.form-group label .req{color:var(--danger);}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:.85rem;outline:none;transition:border-color .15s;color:var(--text);}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--teal);}
+.form-group textarea{resize:vertical;min-height:60px;}
+.form-section-title{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;font-weight:700;color:var(--muted);margin:14px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border);}
+
+/* ── Expiration Report ── */
+.report-table{width:100%;border-collapse:collapse;font-size:.8rem;}
+.report-table th{text-align:left;padding:9px 14px;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:#f8fafc;border-bottom:1px solid var(--border);}
+.report-table td{padding:9px 14px;border-bottom:1px solid #f8fafc;vertical-align:middle;}
+.report-table tr:hover td{background:#f8fafc;}
+
+/* Type colors */
+.type-physician{background:#dbeafe;color:#1d4ed8;}
+.type-anesthesiologist{background:#fce7f3;color:#9d174d;}
+.type-crna{background:#ccfbf1;color:#0f766e;}
+.type-np{background:#fef3c7;color:#b45309;}
+.type-pa{background:#ede9fe;color:#6d28d9;}
+.type-other{background:#f1f5f9;color:#475569;}
+.avatar-physician{background:linear-gradient(135deg,#1d4ed8,#3b82f6);}
+.avatar-anesthesiologist{background:linear-gradient(135deg,#9d174d,#ec4899);}
+.avatar-crna{background:linear-gradient(135deg,#0f766e,#14b8a6);}
+.avatar-np{background:linear-gradient(135deg,#b45309,#f59e0b);}
+.avatar-pa{background:linear-gradient(135deg,#6d28d9,#a78bfa);}
+.avatar-other{background:linear-gradient(135deg,#475569,#94a3b8);}
+
+@media(max-width:700px){
+  .form-row,.form-row-3{grid-template-columns:1fr;}
+  .cred-label{flex:0 0 160px;}
+  .detail-header{flex-wrap:wrap;}
+}
+@media print{
+  header .btn-outline,.toolbar,.card-actions,.detail-actions,.tab-bar,.icon-btn,#loginGate{display:none!important;}
+  body{background:#fff;}
+  .cred-section,.provider-card{break-inside:avoid;}
+}
+</style>
+</head>
+<body>
+
+<!-- ── Login Gate ── -->
+<div id="loginGate">
+  <div class="login-card">
+    <div class="login-logo">📋</div>
+    <div class="login-title">Provider Credentialing Manager</div>
+    <div class="login-sub">Track physician, anesthesia &amp; APC credentials<br>across all accreditation standards.</div>
+    <div class="login-field">
+      <label>Facility Name</label>
+      <input type="text" id="lgFacility" placeholder="e.g., Sunrise Surgery Center" autocomplete="organization"/>
+    </div>
+    <div class="login-field">
+      <label>Access Password</label>
+      <input type="password" id="lgPassword" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <div class="login-error" id="lgError"></div>
+    <button class="login-btn" onclick="doLogin()">Access Credentialing Manager</button>
+    <div class="login-footer">Provided by JNIH Consulting &nbsp;•&nbsp; Accreditation Support Services</div>
+  </div>
+</div>
+
+<!-- ── Header ── -->
+<header>
+  <div class="header-logo">
+    <svg viewBox="0 0 32 32" fill="none">
+      <rect width="32" height="32" rx="7" fill="rgba(255,255,255,0.15)"/>
+      <path d="M10 8h12M10 12h12M10 16h8M10 20h6" stroke="white" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="24" cy="22" r="5" fill="rgba(255,255,255,0.2)" stroke="white" stroke-width="1.5"/>
+      <path d="M22 22l1.5 1.5L26 20" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <h1>Provider Credentialing Manager
+      <span id="hdrFacility">QUAD A &nbsp;|&nbsp; AAAHC &nbsp;|&nbsp; Joint Commission</span>
+    </h1>
+  </div>
+  <div class="header-right">
+    <div id="hdrDateTime"></div>
+    <button class="btn btn-outline btn-sm" onclick="window.print()">&#128438; Print</button>
+    <button class="btn btn-outline btn-sm" onclick="exportCSV()">&#8675; Export</button>
+    <button class="btn btn-outline btn-sm" onclick="doLock()" title="Lock">&#128274;</button>
+  </div>
+</header>
+
+<div class="app-body">
+
+  <!-- ── Dashboard View ── -->
+  <div id="dashView">
+    <div class="stats-row" id="statsRow"></div>
+
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <div class="search-box">
+          <span>🔍</span>
+          <input type="text" id="searchInput" placeholder="Search providers…" oninput="renderDashboard()"/>
+        </div>
+        <div class="filter-tabs" id="filterTabs">
+          <button class="filter-tab active" data-filter="all" onclick="setFilter('all',this)">All</button>
+          <button class="filter-tab" data-filter="physician" onclick="setFilter('physician',this)">Physicians</button>
+          <button class="filter-tab" data-filter="anesthesiologist" onclick="setFilter('anesthesiologist',this)">Anesthesiologists</button>
+          <button class="filter-tab" data-filter="crna" onclick="setFilter('crna',this)">CRNAs</button>
+          <button class="filter-tab" data-filter="np" onclick="setFilter('np',this)">NPs</button>
+          <button class="filter-tab" data-filter="pa" onclick="setFilter('pa',this)">PAs</button>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="openAddProvider()">+ Add Provider</button>
+    </div>
+
+    <div class="provider-grid" id="providerGrid"></div>
+  </div>
+
+  <!-- ── Detail View ── -->
+  <div id="detailView">
+    <div style="margin-bottom:14px;">
+      <button class="btn btn-ghost btn-sm" onclick="showDashboard()">&#8592; Back to All Providers</button>
+    </div>
+    <div class="detail-header" id="detailHeader"></div>
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="showTab('creds',this)">Credentials</button>
+      <button class="tab-btn" onclick="showTab('privileges',this)">Privileges</button>
+      <button class="tab-btn" onclick="showTab('oppe',this)">OPPE / FPPE</button>
+      <button class="tab-btn" onclick="showTab('notes',this)">Notes</button>
+    </div>
+    <div id="tabCreds"></div>
+    <div id="tabPrivileges" style="display:none;"></div>
+    <div id="tabOppe" style="display:none;"></div>
+    <div id="tabNotes" style="display:none;"></div>
+  </div>
+
+</div>
+
+<!-- ── Add/Edit Provider Modal ── -->
+<div class="modal-overlay hidden" id="providerModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 id="providerModalTitle">Add Provider</h3>
+      <button class="modal-close" onclick="closeModal('providerModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-section-title">Provider Information</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>First Name <span class="req">*</span></label>
+          <input type="text" id="pFirstName" placeholder="First name"/>
+        </div>
+        <div class="form-group">
+          <label>Last Name <span class="req">*</span></label>
+          <input type="text" id="pLastName" placeholder="Last name"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Credentials / Suffix</label>
+          <input type="text" id="pCredentials" placeholder="MD, DO, CRNA, NP, PA-C…"/>
+        </div>
+        <div class="form-group">
+          <label>Provider Type <span class="req">*</span></label>
+          <select id="pType">
+            <option value="">— Select Type —</option>
+            <option value="physician">Physician (MD/DO)</option>
+            <option value="anesthesiologist">Anesthesiologist (MD/DO)</option>
+            <option value="crna">CRNA</option>
+            <option value="np">Nurse Practitioner (NP)</option>
+            <option value="pa">Physician Assistant (PA)</option>
+            <option value="other">Other APC</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Specialty</label>
+          <input type="text" id="pSpecialty" placeholder="e.g., General Surgery, Pain Management"/>
+        </div>
+        <div class="form-group">
+          <label>NPI Number</label>
+          <input type="text" id="pNPI" placeholder="10-digit NPI"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Status</label>
+          <select id="pStatus">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="on_leave">On Leave</option>
+            <option value="terminated">Terminated</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Hire / Start Date</label>
+          <input type="date" id="pHireDate"/>
+        </div>
+      </div>
+      <div class="form-section-title">Appointment</div>
+      <div class="form-row form-row-3">
+        <div class="form-group">
+          <label>Initial Appointment Date</label>
+          <input type="date" id="pInitialAppt"/>
+        </div>
+        <div class="form-group">
+          <label>Reappointment Due Date</label>
+          <input type="date" id="pReappt"/>
+        </div>
+        <div class="form-group">
+          <label>Governing Body Approval</label>
+          <input type="date" id="pGovApproval"/>
+        </div>
+      </div>
+      <div class="form-section-title">Contact</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="pEmail" placeholder="provider@facility.com"/>
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="tel" id="pPhone" placeholder="(555) 000-0000"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea id="pNotes" placeholder="General notes about this provider…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('providerModal')">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="saveProvider()">Save Provider</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit Credential Modal ── -->
+<div class="modal-overlay hidden" id="credModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="credModalTitle">Edit Credential</h3>
+      <button class="modal-close" onclick="closeModal('credModal')">✕</button>
+    </div>
+    <div class="modal-body" id="credModalBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('credModal')">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="saveCred()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add Privilege Modal ── -->
+<div class="modal-overlay hidden" id="privModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="privModalTitle">Add Privilege</h3>
+      <button class="modal-close" onclick="closeModal('privModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Privilege / Procedure Name <span class="req">*</span></label>
+        <input type="text" id="privName" placeholder="e.g., Laparoscopic Cholecystectomy"/>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Category</label>
+          <input type="text" id="privCategory" placeholder="e.g., Abdominal, Orthopedic, Anesthesia"/>
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="privStatus">
+            <option value="approved">Approved</option>
+            <option value="pending">Pending Review</option>
+            <option value="suspended">Suspended</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Approval Date</label>
+          <input type="date" id="privApprovalDate"/>
+        </div>
+        <div class="form-group">
+          <label>Approved By</label>
+          <input type="text" id="privApprovedBy" placeholder="Committee / Governing Body"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea id="privNotes" placeholder="Conditions, restrictions, or other notes…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('privModal')">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="savePrivilege()">Save Privilege</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── OPPE Modal ── -->
+<div class="modal-overlay hidden" id="oppeModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Update OPPE / FPPE</h3>
+      <button class="modal-close" onclick="closeModal('oppeModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>OPPE Status</label>
+          <select id="oppeStatus">
+            <option value="current">Current OPPE</option>
+            <option value="new_applicant">New Applicant (&lt;2 yrs)</option>
+            <option value="fppe">FPPE Triggered</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Last Review Date</label>
+          <input type="date" id="oppeLastReview"/>
+        </div>
+      </div>
+      <div class="form-section-title">Performance Metrics</div>
+      <div class="form-row form-row-3">
+        <div class="form-group">
+          <label>Case Volume (period)</label>
+          <input type="number" id="oppeCaseVol" placeholder="0" min="0"/>
+        </div>
+        <div class="form-group">
+          <label>Complication Rate %</label>
+          <input type="number" id="oppeCompRate" placeholder="0.0" step="0.1" min="0" max="100"/>
+        </div>
+        <div class="form-group">
+          <label>Peer Review Score %</label>
+          <input type="number" id="oppePRScore" placeholder="100" min="0" max="100"/>
+        </div>
+      </div>
+      <div class="form-section-title">FPPE (if triggered)</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>FPPE Trigger Criteria</label>
+          <input type="text" id="fppeCriteria" placeholder="Describe trigger…"/>
+        </div>
+        <div class="form-group">
+          <label>FPPE Start Date</label>
+          <input type="date" id="fppeStart"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Cases Required</label>
+          <input type="number" id="fppeCasesReq" placeholder="e.g., 10"/>
+        </div>
+        <div class="form-group">
+          <label>Expected Completion</label>
+          <input type="date" id="fppeEnd"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>OPPE / FPPE Notes</label>
+        <textarea id="oppeNotes" placeholder="Reviewer notes, actions taken, outcomes…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('oppeModal')">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="saveOppe()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Auth ────────────────────────────────────────────────────────────────────
+// ↓↓↓ CHANGE THIS PASSWORD FOR EACH CLIENT ↓↓↓
+const CLIENT_PASSWORD = 'accred2025';
+
+function doLogin() {
+  const fac = document.getElementById('lgFacility').value.trim();
+  const pw  = document.getElementById('lgPassword').value;
+  const err = document.getElementById('lgError');
+  [document.getElementById('lgFacility'), document.getElementById('lgPassword')].forEach(el => el.classList.remove('error'));
+  err.textContent = '';
+  if (!fac) { document.getElementById('lgFacility').classList.add('error'); err.textContent = 'Please enter your facility name.'; return; }
+  if (pw !== CLIENT_PASSWORD) { document.getElementById('lgPassword').classList.add('error'); document.getElementById('lgPassword').value=''; err.textContent = 'Incorrect password.'; return; }
+  localStorage.setItem('cred_facility', fac);
+  sessionStorage.setItem('cred_authed', '1');
+  document.getElementById('loginGate').classList.add('hidden');
+  applyFacility(fac); startClock(); renderAll();
+}
+function doLock() {
+  sessionStorage.removeItem('cred_authed');
+  document.getElementById('loginGate').classList.remove('hidden');
+  document.getElementById('lgPassword').value = '';
+  const saved = localStorage.getItem('cred_facility')||'';
+  document.getElementById('lgFacility').value = saved;
+}
+function applyFacility(name) {
+  document.getElementById('hdrFacility').textContent = name + '  —  Credentialing Manager';
+  document.title = name + ' — Credentialing Manager';
+}
+
+// ─── Credential Templates ─────────────────────────────────────────────────────
+const CRED_SECTIONS = {
+  physician: [
+    { title: 'Licensure & Registration', items: [
+      { key:'state_license',  label:'State Medical License',             hasNumber:true, hasIssuer:true,  hasExp:true,  alertDays:90,  psv:true,  hint:'License #, State, Expiration' },
+      { key:'dea',            label:'DEA Registration (Schedules II–V)', hasNumber:true, hasIssuer:false, hasExp:true,  alertDays:90,  psv:true,  hint:'DEA #, Expiration' },
+      { key:'state_cds',      label:'State Controlled Substance License',hasNumber:true, hasIssuer:true,  hasExp:true,  alertDays:90,  psv:false, hint:'CDS #, State, Expiration (if separate from DEA)' },
+      { key:'npi',            label:'NPI Number',                        hasNumber:true, hasIssuer:false, hasExp:false, alertDays:0,   psv:false, hint:'10-digit NPI' },
+      { key:'medicare',       label:'Medicare / Medicaid Enrollment',    hasNumber:true, hasIssuer:false, hasExp:false, alertDays:0,   psv:false, hint:'PTAN or enrollment status' },
+    ]},
+    { title: 'Board Certification & Education', items: [
+      { key:'board_cert',  label:'Board Certification',   hasNumber:false,hasIssuer:true, hasExp:true,  alertDays:90,  psv:true,  hint:'Specialty, Certifying Board, Expiration/MOC' },
+      { key:'med_school',  label:'Medical School',        hasNumber:false,hasIssuer:true, hasExp:false, alertDays:0,   psv:true,  hint:'Institution, Graduation Year' },
+      { key:'residency',   label:'Residency Program',     hasNumber:false,hasIssuer:true, hasExp:false, alertDays:0,   psv:true,  hint:'Program, Specialty, Completion Year' },
+      { key:'fellowship',  label:'Fellowship (if applicable)',hasNumber:false,hasIssuer:true,hasExp:false,alertDays:0, psv:true,  hint:'Program, Specialty, Completion Year' },
+      { key:'cme',         label:'CME Hours — Current Cycle', hasNumber:false,hasIssuer:false,hasExp:true,alertDays:90,psv:false, hint:'Hours completed / required, Cycle end date', extraLabel:'Hours (completed/required)' },
+    ]},
+    { title: 'Emergency Certifications', items: [
+      { key:'bls',  label:'BLS / CPR Certification', hasNumber:true, hasIssuer:false, hasExp:true, alertDays:60, psv:false, hint:'Card #, Expiration (2-year cycle)' },
+      { key:'acls', label:'ACLS Certification',       hasNumber:true, hasIssuer:false, hasExp:true, alertDays:60, psv:false, hint:'Card #, Expiration (2-year cycle)' },
+      { key:'pals', label:'PALS Certification',       hasNumber:true, hasIssuer:false, hasExp:true, alertDays:60, psv:false, hint:'Card #, Expiration (if applicable)' },
+      { key:'atls', label:'ATLS Certification',       hasNumber:true, hasIssuer:false, hasExp:true, alertDays:60, psv:false, hint:'Card #, Expiration (if applicable)' },
+    ]},
+    { title: 'Insurance & Background Verification', items: [
+      { key:'malpractice', label:'Malpractice Insurance',      hasNumber:true, hasIssuer:true,  hasExp:true,  alertDays:60,  psv:false, hint:'Carrier, Policy #, Expiration', extraLabel:'Coverage Limits (per occ / aggregate)' },
+      { key:'npdb',        label:'NPDB Query',                 hasNumber:false,hasIssuer:false, hasExp:false, alertDays:0,   psv:false, hint:'Date last queried (flag if >2 years)', isQuery:true, queryInterval:730 },
+      { key:'oig',         label:'OIG / SAM Exclusion Check',  hasNumber:false,hasIssuer:false, hasExp:false, alertDays:0,   psv:false, hint:'Date last checked (flag if >90 days)', isQuery:true, queryInterval:90 },
+      { key:'background',  label:'Background Check',           hasNumber:false,hasIssuer:true,  hasExp:false, alertDays:0,   psv:false, hint:'Vendor, Date completed', isQuery:true, queryInterval:730 },
+    ]},
+    { title: 'Peer References', items: [
+      { key:'ref1', label:'Peer Reference 1', hasNumber:false, hasIssuer:true, hasExp:false, alertDays:0, psv:false, hint:'Name, Contact Info', extraLabel:'Date Received / Status', isRef:true },
+      { key:'ref2', label:'Peer Reference 2', hasNumber:false, hasIssuer:true, hasExp:false, alertDays:0, psv:false, hint:'Name, Contact Info', extraLabel:'Date Received / Status', isRef:true },
+      { key:'ref3', label:'Peer Reference 3', hasNumber:false, hasIssuer:true, hasExp:false, alertDays:0, psv:false, hint:'Name, Contact Info', extraLabel:'Date Received / Status', isRef:true },
+    ]},
+    { title: 'Health, Immunizations & Attestation', items: [
+      { key:'health_attest', label:'Health Attestation',       hasNumber:false, hasIssuer:false, hasExp:true, alertDays:30, psv:false, hint:'Date signed, Expiration' },
+      { key:'tb',            label:'TB / LTBI Screening',      hasNumber:false, hasIssuer:false, hasExp:true, alertDays:30, psv:false, hint:'Date, Result, Next due' },
+      { key:'flu',           label:'Influenza Vaccination',    hasNumber:false, hasIssuer:false, hasExp:true, alertDays:0,  psv:false, hint:'Date, Season' },
+      { key:'hepb',          label:'Hepatitis B Status',       hasNumber:false, hasIssuer:false, hasExp:false,alertDays:0,  psv:false, hint:'Vaccinated / Immune titer / Declined', extraLabel:'Status / Titer Result' },
+      { key:'mmr',           label:'MMR Status',               hasNumber:false, hasIssuer:false, hasExp:false,alertDays:0,  psv:false, hint:'Vaccinated / Immune / Prior illness', extraLabel:'Status / Titer Result' },
+      { key:'varicella',     label:'Varicella / Chickenpox',   hasNumber:false, hasIssuer:false, hasExp:false,alertDays:0,  psv:false, hint:'Vaccinated / Immune / Prior illness', extraLabel:'Status / Titer Result' },
+      { key:'tdap',          label:'Tdap Vaccination',         hasNumber:false, hasIssuer:false, hasExp:true, alertDays:365,psv:false, hint:'Date, Booster due (every 10 years)' },
+      { key:'covid',         label:'COVID-19 Vaccination',     hasNumber:false, hasIssuer:false, hasExp:false,alertDays:0,  psv:false, hint:'Vaccination status / Dates', extraLabel:'Status / Dates' },
+    ]},
+    { title: 'Appointment & Reappointment', items: [
+      { key:'initial_appt',   label:'Initial Appointment Date',          hasNumber:false, hasIssuer:false, hasExp:false, alertDays:0,  psv:false, hint:'Date of initial appointment' },
+      { key:'reappointment',  label:'Reappointment Due Date',            hasNumber:false, hasIssuer:false, hasExp:true,  alertDays:90, psv:false, hint:'Date reappointment is due (typically every 2 years)' },
+      { key:'gov_approval',   label:'Governing Body Approval Date',      hasNumber:false, hasIssuer:false, hasExp:false, alertDays:0,  psv:false, hint:'Date governing body approved privileges' },
+      { key:'privilege_form', label:'Privilege Delineation Form — Signed',hasNumber:false, hasIssuer:false, hasExp:true,  alertDays:90, psv:false, hint:'Date signed/approved, Expiration' },
+    ]},
+  ],
+  anesthesiologist: [], crna: [], np: [], pa: [], other: []
+};
+
+// Anesthesiologist = physician + anesthesia specifics
+CRED_SECTIONS.anesthesiologist = JSON.parse(JSON.stringify(CRED_SECTIONS.physician));
+CRED_SECTIONS.anesthesiologist.splice(1, 0, { title: 'Anesthesia Certification', items: [
+  { key:'aba_cert',     label:'ABA Board Certification (Anesthesiology)', hasNumber:false, hasIssuer:true, hasExp:true, alertDays:90, psv:true, hint:'ABA, Expiration/MOC status' },
+  { key:'csa',          label:'Controlled Substance Authorization',        hasNumber:true,  hasIssuer:true, hasExp:true, alertDays:90, psv:false,hint:'State-specific CSA number and expiration' },
+]});
+
+// CRNA
+CRED_SECTIONS.crna = [
+  { title: 'Nursing Licensure', items: [
+    { key:'rn_license',   label:'Registered Nurse (RN) License',          hasNumber:true, hasIssuer:true, hasExp:true, alertDays:90, psv:true, hint:'RN License #, State, Expiration' },
+    { key:'aprn_license', label:'APRN / APN License',                     hasNumber:true, hasIssuer:true, hasExp:true, alertDays:90, psv:true, hint:'APRN License #, State, Expiration' },
+  ]},
+  { title: 'CRNA Certification', items: [
+    { key:'nbcrna',       label:'NBCRNA Certification',                    hasNumber:true, hasIssuer:false, hasExp:true, alertDays:90, psv:true, hint:'Certification #, Expiration (4-year cycle)' },
+    { key:'csa',          label:'Controlled Substance Authorization',      hasNumber:true, hasIssuer:true,  hasExp:true, alertDays:90, psv:false,hint:'State CSA #, Expiration' },
+    { key:'collab_agree', label:'Supervision / Collaboration Agreement',  hasNumber:false, hasIssuer:true,  hasExp:true, alertDays:60, psv:false,hint:'Supervising physician, Expiration (if applicable)' },
+  ]},
+  { title: 'Registration', items: [
+    { key:'dea',      label:'DEA Registration',      hasNumber:true, hasIssuer:false, hasExp:true, alertDays:90, psv:true, hint:'DEA #, Expiration' },
+    { key:'npi',      label:'NPI Number',            hasNumber:true, hasIssuer:false, hasExp:false,alertDays:0,  psv:false,hint:'10-digit NPI' },
+    { key:'medicare', label:'Medicare Enrollment',   hasNumber:true, hasIssuer:false, hasExp:false,alertDays:0,  psv:false,hint:'PTAN or status' },
+  ]},
+  { title: 'Emergency Certifications', items: [
+    { key:'bls',  label:'BLS / CPR Certification', hasNumber:true, hasIssuer:false, hasExp:true, alertDays:60, psv:false },
+    { key:'acls', label:'ACLS Certification',       hasNumber:true, hasIssuer:false, hasExp:true, alertDays:60, psv:false },
+    { key:'pals', label:'PALS Certification',       hasNumber:true, hasIssuer:false, hasExp:true, alertDays:60, psv:false },
+  ]},
+  { title: 'Insurance & Verification', items: [
+    { key:'malpractice', label:'Malpractice Insurance',     hasNumber:true,  hasIssuer:true,  hasExp:true,  alertDays:60, psv:false, extraLabel:'Coverage Limits' },
+    { key:'npdb',        label:'NPDB Query',                hasNumber:false, hasIssuer:false, hasExp:false, alertDays:0, psv:false, isQuery:true, queryInterval:730 },
+    { key:'oig',         label:'OIG / SAM Exclusion Check', hasNumber:false, hasIssuer:false, hasExp:false, alertDays:0, psv:false, isQuery:true, queryInterval:90 },
+    { key:'background',  label:'Background Check',          hasNumber:false, hasIssuer:true,  hasExp:false, alertDays:0, psv:false, isQuery:true, queryInterval:730 },
+  ]},
+  ...JSON.parse(JSON.stringify(CRED_SECTIONS.physician.slice(4))), // refs, health, appointment
+];
+
+// NP
+CRED_SECTIONS.np = [
+  { title: 'Nursing Licensure', items: [
+    { key:'rn_license',   label:'RN License',             hasNumber:true, hasIssuer:true, hasExp:true, alertDays:90, psv:true, hint:'RN License #, State, Expiration' },
+    { key:'aprn_license', label:'APRN / APN License',     hasNumber:true, hasIssuer:true, hasExp:true, alertDays:90, psv:true, hint:'APRN License #, State, Expiration' },
+  ]},
+  { title: 'NP Certification', items: [
+    { key:'np_cert',      label:'NP National Certification (AANP or ANCC)', hasNumber:true, hasIssuer:true,  hasExp:true, alertDays:90, psv:true, hint:'Certification #, Board (AANP/ANCC), Expiration' },
+    { key:'dea',          label:'DEA Registration',                         hasNumber:true, hasIssuer:false, hasExp:true, alertDays:90, psv:true, hint:'DEA #, Expiration (if prescribing)' },
+    { key:'state_cds',    label:'State CDS / Prescriptive Authority',       hasNumber:true, hasIssuer:true,  hasExp:true, alertDays:90, psv:false,hint:'CDS #, State, Expiration' },
+    { key:'collab_agree', label:'Collaboration / Supervision Agreement',    hasNumber:false, hasIssuer:true,  hasExp:true, alertDays:60, psv:false,hint:'Supervising physician name, Expiration' },
+  ]},
+  { title: 'Registration & Enrollment', items: [
+    { key:'npi',      label:'NPI Number',          hasNumber:true, hasIssuer:false, hasExp:false, alertDays:0, psv:false },
+    { key:'medicare', label:'Medicare Enrollment', hasNumber:true, hasIssuer:false, hasExp:false, alertDays:0, psv:false },
+  ]},
+  { title: 'Emergency Certifications', items: [
+    { key:'bls',  label:'BLS / CPR', hasNumber:true, hasIssuer:false, hasExp:true, alertDays:60, psv:false },
+    { key:'acls', label:'ACLS',      hasNumber:true, hasIssuer:false, hasExp:true, alertDays:60, psv:false },
+  ]},
+  { title: 'Insurance & Verification', items: [
+    { key:'malpractice', label:'Malpractice Insurance',     hasNumber:true,  hasIssuer:true,  hasExp:true,  alertDays:60, psv:false, extraLabel:'Coverage Limits' },
+    { key:'npdb',        label:'NPDB Query',                hasNumber:false, hasIssuer:false, hasExp:false, alertDays:0, isQuery:true, queryInterval:730 },
+    { key:'oig',         label:'OIG / SAM Exclusion Check', hasNumber:false, hasIssuer:false, hasExp:false, alertDays:0, isQuery:true, queryInterval:90 },
+    { key:'background',  label:'Background Check',          hasNumber:false, hasIssuer:true,  hasExp:false, alertDays:0, isQuery:true, queryInterval:730 },
+  ]},
+  ...JSON.parse(JSON.stringify(CRED_SECTIONS.physician.slice(4))),
+];
+
+// PA
+CRED_SECTIONS.pa = [
+  { title: 'PA Licensure & Certification', items: [
+    { key:'pa_license',  label:'PA State License',           hasNumber:true, hasIssuer:true, hasExp:true, alertDays:90, psv:true, hint:'PA License #, State, Expiration' },
+    { key:'nccpa',       label:'NCCPA Certification',        hasNumber:true, hasIssuer:false,hasExp:true, alertDays:90, psv:true, hint:'NCCPA #, Expiration (10-year cycle + CME)' },
+    { key:'dea',         label:'DEA Registration',           hasNumber:true, hasIssuer:false,hasExp:true, alertDays:90, psv:true, hint:'DEA #, Expiration (if prescribing)' },
+    { key:'state_cds',   label:'State CDS / Prescriptive Authority', hasNumber:true, hasIssuer:true, hasExp:true, alertDays:90, psv:false },
+    { key:'super_agree', label:'Supervision Agreement',      hasNumber:false, hasIssuer:true, hasExp:true, alertDays:60, psv:false, hint:'Supervising physician name, Expiration' },
+  ]},
+  { title: 'Registration & Enrollment', items: [
+    { key:'npi',      label:'NPI Number',          hasNumber:true, hasIssuer:false, hasExp:false, alertDays:0, psv:false },
+    { key:'medicare', label:'Medicare Enrollment', hasNumber:true, hasIssuer:false, hasExp:false, alertDays:0, psv:false },
+  ]},
+  { title: 'Emergency Certifications', items: [
+    { key:'bls',  label:'BLS / CPR', hasNumber:true, hasIssuer:false, hasExp:true, alertDays:60, psv:false },
+    { key:'acls', label:'ACLS',      hasNumber:true, hasIssuer:false, hasExp:true, alertDays:60, psv:false },
+    { key:'pals', label:'PALS',      hasNumber:true, hasIssuer:false, hasExp:true, alertDays:60, psv:false },
+  ]},
+  { title: 'Insurance & Verification', items: [
+    { key:'malpractice', label:'Malpractice Insurance',     hasNumber:true,  hasIssuer:true,  hasExp:true,  alertDays:60, psv:false, extraLabel:'Coverage Limits' },
+    { key:'npdb',        label:'NPDB Query',                hasNumber:false, hasIssuer:false, hasExp:false, alertDays:0, isQuery:true, queryInterval:730 },
+    { key:'oig',         label:'OIG / SAM Exclusion Check', hasNumber:false, hasIssuer:false, hasExp:false, alertDays:0, isQuery:true, queryInterval:90 },
+    { key:'background',  label:'Background Check',          hasNumber:false, hasIssuer:true,  hasExp:false, alertDays:0, isQuery:true, queryInterval:730 },
+  ]},
+  ...JSON.parse(JSON.stringify(CRED_SECTIONS.physician.slice(4))),
+];
+
+CRED_SECTIONS.other = JSON.parse(JSON.stringify(CRED_SECTIONS.physician));
+
+// ─── State ────────────────────────────────────────────────────────────────────
+function loadProviders() { try { return JSON.parse(localStorage.getItem('cred_providers')) || []; } catch { return []; } }
+function saveProviders(p) { localStorage.setItem('cred_providers', JSON.stringify(p)); }
+
+let currentFilter = 'all';
+let currentProviderId = null;
+let editingProviderId = null;
+let editingCredKey = null;
+let editingPrivIdx = null;
+let activeTab = 'creds';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function uid() { return 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,7); }
+function today() { return new Date().toISOString().split('T')[0]; }
+function fmtDate(d) { if (!d) return '—'; const dt = new Date(d+'T12:00:00'); return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
+function daysUntil(d) { if (!d) return null; const diff = new Date(d+'T12:00:00') - new Date(); return Math.ceil(diff / 86400000); }
+function daysSince(d) { if (!d) return null; return Math.floor((new Date() - new Date(d+'T12:00:00')) / 86400000); }
+function initials(first, last) { return ((first||'')[0]||'') + ((last||'')[0]||''); }
+
+const TYPE_LABELS = { physician:'Physician', anesthesiologist:'Anesthesiologist', crna:'CRNA', np:'Nurse Practitioner', pa:'Physician Assistant', other:'APC / Other' };
+
+function getItemStatus(item, data) {
+  if (!data) return 'empty';
+  if (item.isQuery) {
+    const since = daysSince(data.queryDate);
+    if (since === null) return 'empty';
+    if (since > item.queryInterval) return 'expired';
+    if (since > item.queryInterval * 0.8) return 'expiring';
+    return 'current';
+  }
+  if (!item.hasExp) return data.value || data.number || data.issuer ? 'current' : 'empty';
+  const days = daysUntil(data.expiration);
+  if (days === null) return 'empty';
+  if (days < 0) return 'expired';
+  if (days <= (item.alertDays || 60)) return 'expiring';
+  return 'current';
+}
+
+function getProviderStatus(provider) {
+  const sections = CRED_SECTIONS[provider.type] || [];
+  const items = sections.flatMap(s => s.items);
+  const statuses = items.map(item => getItemStatus(item, (provider.credentials||{})[item.key]));
+  if (statuses.includes('expired')) return 'expired';
+  if (statuses.includes('expiring')) return 'expiring';
+  const filled = statuses.filter(s => s !== 'empty').length;
+  if (filled < items.length * 0.3) return 'incomplete';
+  return 'current';
+}
+
+function countAlerts(provider) {
+  const sections = CRED_SECTIONS[provider.type] || [];
+  const items = sections.flatMap(s => s.items);
+  let expired=0, expiring=0, psvPending=0;
+  items.forEach(item => {
+    const data = (provider.credentials||{})[item.key];
+    const st = getItemStatus(item, data);
+    if (st === 'expired') expired++;
+    if (st === 'expiring') expiring++;
+    if (item.psv && data && data.psvStatus === 'pending') psvPending++;
+  });
+  return { expired, expiring, psvPending };
+}
+
+// ─── Stats ────────────────────────────────────────────────────────────────────
+function renderStats() {
+  const providers = loadProviders().filter(p => p.status !== 'terminated');
+  let totalExpired=0, totalExpiring=0, psvPending=0;
+  providers.forEach(p => { const a = countAlerts(p); totalExpired+=a.expired; totalExpiring+=a.expiring; psvPending+=a.psvPending; });
+  const reapptSoon = providers.filter(p => { const d = daysUntil(p.reappointment); return d !== null && d >= 0 && d <= 90; }).length;
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-card"><div class="stat-icon" style="background:#dbeafe;color:#1d4ed8;">👥</div><div><div class="stat-label">Active Providers</div><div class="stat-value">${providers.length}</div><div class="stat-sub">in credentialing file</div></div></div>
+    <div class="stat-card"><div class="stat-icon" style="background:${totalExpired?'#fee2e2':'#f1f5f9'};color:${totalExpired?'#dc2626':'#94a3b8'};">🔴</div><div><div class="stat-label">Expired Items</div><div class="stat-value" style="color:${totalExpired?'#dc2626':'#16a34a'}">${totalExpired}</div><div class="stat-sub">require immediate action</div></div></div>
+    <div class="stat-card"><div class="stat-icon" style="background:${totalExpiring?'#fef3c7':'#f1f5f9'};color:${totalExpiring?'#d97706':'#94a3b8'};">⚠️</div><div><div class="stat-label">Expiring &lt;60 Days</div><div class="stat-value" style="color:${totalExpiring?'#d97706':'#16a34a'}">${totalExpiring}</div><div class="stat-sub">renew soon</div></div></div>
+    <div class="stat-card"><div class="stat-icon" style="background:#ede9fe;color:#7c3aed;">📋</div><div><div class="stat-label">PSV Pending</div><div class="stat-value" style="color:#7c3aed;">${psvPending}</div><div class="stat-sub">need primary source verification</div></div></div>
+    <div class="stat-card"><div class="stat-icon" style="background:#fef3c7;color:#b45309;">📅</div><div><div class="stat-label">Reappointment Due</div><div class="stat-value" style="color:#b45309;">${reapptSoon}</div><div class="stat-sub">within 90 days</div></div></div>
+  `;
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+function renderDashboard() {
+  renderStats();
+  let providers = loadProviders();
+  const q = (document.getElementById('searchInput')?.value||'').toLowerCase();
+  if (currentFilter !== 'all') providers = providers.filter(p => p.type === currentFilter);
+  if (q) providers = providers.filter(p => `${p.firstName} ${p.lastName} ${p.specialty} ${p.npi}`.toLowerCase().includes(q));
+  const grid = document.getElementById('providerGrid');
+  if (!providers.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;"><div class="empty-state"><svg viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="20" stroke="#cbd5e1" stroke-width="2"/><path d="M24 16v8M24 28h.01" stroke="#cbd5e1" stroke-width="2" stroke-linecap="round"/></svg><p>${q||currentFilter!=='all'?'No providers match your search.':'No providers yet. Click <strong>+ Add Provider</strong> to get started.'}</p></div></div>`;
+    return;
+  }
+  providers.sort((a,b) => `${a.lastName}${a.firstName}`.localeCompare(`${b.lastName}${b.firstName}`));
+  grid.innerHTML = providers.map(p => providerCardHTML(p)).join('');
+}
+
+function providerCardHTML(p) {
+  const status = getProviderStatus(p);
+  const alerts = countAlerts(p);
+  const reapptDays = daysUntil(p.reappointment);
+  const alertChips = [
+    alerts.expired   ? `<span class="alert-chip chip-expired">🔴 ${alerts.expired} expired</span>` : '',
+    alerts.expiring  ? `<span class="alert-chip chip-expiring">⚠️ ${alerts.expiring} expiring</span>` : '',
+    alerts.psvPending? `<span class="alert-chip chip-psv">📋 ${alerts.psvPending} PSV pending</span>` : '',
+    !alerts.expired && !alerts.expiring && !alerts.psvPending ? `<span class="alert-chip chip-current">✓ All current</span>` : ''
+  ].filter(Boolean).join('');
+  const reapptText = reapptDays === null ? 'No reappointment date' :
+    reapptDays < 0 ? `<strong style="color:var(--danger)">Reappointment OVERDUE</strong>` :
+    reapptDays <= 90 ? `<strong style="color:var(--warning)">Reappt in ${reapptDays} days</strong>` :
+    `Reappt: ${fmtDate(p.reappointment)}`;
+  const statusBadge = p.status === 'active' ? '' : `<span class="type-badge" style="background:#f1f5f9;color:#64748b;">${p.status}</span>`;
+  return `<div class="provider-card status-${status}" onclick="openProvider('${p.id}')">
+    <div class="card-header">
+      <div class="provider-avatar avatar-${p.type}">${initials(p.firstName,p.lastName)}</div>
+      <div class="card-info">
+        <div class="card-name">${p.lastName}, ${p.firstName}${p.credentials?' '+p.credentials:''}</div>
+        <div class="card-specialty">${p.specialty||'—'}</div>
+        <div class="card-npi">NPI: ${p.npi||'—'}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+        <span class="type-badge type-${p.type}">${TYPE_LABELS[p.type]||p.type}</span>
+        ${statusBadge}
+      </div>
+    </div>
+    <div class="card-alerts">${alertChips}</div>
+    <div class="card-footer">
+      <div class="card-reappt">${reapptText}</div>
+      <div class="card-actions" onclick="event.stopPropagation()">
+        <button class="icon-btn" onclick="openProvider('${p.id}')" title="View">👁</button>
+        <button class="icon-btn" onclick="openEditProvider('${p.id}')" title="Edit">✎</button>
+        <button class="icon-btn" onclick="deleteProvider('${p.id}')" title="Delete" style="color:var(--danger)">🗑</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  renderDashboard();
+}
+
+// ─── Provider Detail ──────────────────────────────────────────────────────────
+function openProvider(id) {
+  currentProviderId = id;
+  document.getElementById('dashView').style.display = 'none';
+  document.getElementById('detailView').style.display = 'block';
+  showTab('creds', document.querySelector('.tab-btn'));
+  renderDetailHeader();
+  renderCredTab();
+}
+
+function showDashboard() {
+  document.getElementById('detailView').style.display = 'none';
+  document.getElementById('dashView').style.display = 'block';
+  renderDashboard();
+}
+
+function renderDetailHeader() {
+  const p = loadProviders().find(x => x.id === currentProviderId);
+  if (!p) return;
+  const alerts = countAlerts(p);
+  const reapptDays = daysUntil(p.reappointment);
+  const pills = [
+    alerts.expired    ? `<span class="status-pill pill-expired">🔴 ${alerts.expired} Expired</span>` : '',
+    alerts.expiring   ? `<span class="status-pill pill-expiring">⚠️ ${alerts.expiring} Expiring Soon</span>` : '',
+    alerts.psvPending ? `<span class="status-pill pill-psv">📋 ${alerts.psvPending} PSV Pending</span>` : '',
+    !alerts.expired && !alerts.expiring ? `<span class="status-pill pill-current">✓ All Current</span>` : '',
+    reapptDays !== null && reapptDays <= 90 ? `<span class="status-pill" style="background:var(--warning-bg);color:var(--warning)">📅 Reappt in ${reapptDays}d</span>` : ''
+  ].filter(Boolean).join('');
+  document.getElementById('detailHeader').innerHTML = `
+    <div class="detail-avatar avatar-${p.type}">${initials(p.firstName,p.lastName)}</div>
+    <div class="detail-info">
+      <div class="detail-name">${p.lastName}, ${p.firstName}${p.credentials?' '+p.credentials:''}</div>
+      <div class="detail-meta">
+        <span><span class="type-badge type-${p.type}">${TYPE_LABELS[p.type]}</span></span>
+        <span>📍 ${p.specialty||'No specialty'}</span>
+        <span>🪪 NPI: ${p.npi||'—'}</span>
+        <span>📧 ${p.email||'—'}</span>
+        ${p.hireDate?`<span>📅 Hired: ${fmtDate(p.hireDate)}</span>`:''}
+      </div>
+      <div class="detail-status-row">${pills}</div>
+    </div>
+    <div class="detail-actions">
+      <button class="btn btn-primary btn-sm" onclick="openEditProvider('${p.id}')">✎ Edit Provider</button>
+      <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 Print File</button>
+    </div>`;
+}
+
+function showTab(tab, btn) {
+  activeTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  ['creds','privileges','oppe','notes'].forEach(t => {
+    const el = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (el) el.style.display = t === tab ? 'block' : 'none';
+  });
+  if (tab === 'creds') renderCredTab();
+  if (tab === 'privileges') renderPrivilegesTab();
+  if (tab === 'oppe') renderOppeTab();
+  if (tab === 'notes') renderNotesTab();
+}
+
+// ─── Credentials Tab ──────────────────────────────────────────────────────────
+function renderCredTab() {
+  const p = loadProviders().find(x => x.id === currentProviderId);
+  if (!p) return;
+  const sections = CRED_SECTIONS[p.type] || [];
+  const creds = p.credentials || {};
+  let html = '';
+  sections.forEach(sec => {
+    let completePct = 0, items = sec.items;
+    const filled = items.filter(i => {
+      const d = creds[i.key];
+      return d && (d.number || d.issuer || d.expiration || d.queryDate || d.value || d.extra);
+    }).length;
+    completePct = items.length ? Math.round(filled/items.length*100) : 0;
+    html += `<div class="cred-section">
+      <div class="cred-section-header">
+        <span class="cred-section-title">${sec.title}</span>
+        <span class="cred-section-summary">${filled}/${items.length} complete</span>
+      </div>`;
+    items.forEach(item => {
+      const data = creds[item.key] || {};
+      const status = getItemStatus(item, data.number||data.queryDate||data.expiration||data.value ? data : null);
+      const dotCls = status==='expired'?'dot-expired':status==='expiring'?'dot-expiring':status==='current'?'dot-current':status==='empty'?'dot-empty':'dot-empty';
+      let valueText = '—';
+      const parts = [];
+      if (data.number) parts.push(data.number);
+      if (data.issuer) parts.push(data.issuer);
+      if (data.extra)  parts.push(data.extra);
+      if (data.value)  parts.push(data.value);
+      if (parts.length) valueText = parts.join(' · ');
+      let expText = '—'; let expCls = 'exp-na';
+      if (item.isQuery) {
+        if (data.queryDate) {
+          const since = daysSince(data.queryDate);
+          expText = `Last: ${fmtDate(data.queryDate)}`;
+          expCls = since > item.queryInterval ? 'exp-expired' : since > item.queryInterval*0.8 ? 'exp-expiring' : 'exp-current';
+        }
+      } else if (item.hasExp && data.expiration) {
+        const days = daysUntil(data.expiration);
+        expText = fmtDate(data.expiration);
+        expCls = days < 0 ? 'exp-expired' : days <= (item.alertDays||60) ? 'exp-expiring' : 'exp-current';
+        if (days >= 0 && days <= (item.alertDays||60)) expText += ` (${days}d)`;
+        if (days < 0) expText += ` (EXPIRED)`;
+      } else if (!item.hasExp) { expText = 'N/A'; expCls = 'exp-na'; }
+      const psvBadge = item.psv ? `<span class="psv-badge psv-${data.psvStatus||'pending'}">${(data.psvStatus||'pending').toUpperCase()}</span>` : '';
+      const noteIcon = data.notes ? `<span title="${data.notes}" style="font-size:.75rem;cursor:help;">📝</span>` : '';
+      html += `<div class="cred-item">
+        <div class="cred-status-dot ${dotCls}"></div>
+        <div class="cred-label">${item.label}</div>
+        <div class="cred-value">${valueText} ${noteIcon}</div>
+        <div class="cred-exp ${expCls}">${expText}</div>
+        ${psvBadge}
+        <button class="icon-btn btn-sm" style="margin-left:8px;" onclick="openEditCred('${item.key}')">✎</button>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  document.getElementById('tabCreds').innerHTML = html;
+}
+
+// ─── Privileges Tab ───────────────────────────────────────────────────────────
+function renderPrivilegesTab() {
+  const p = loadProviders().find(x => x.id === currentProviderId);
+  if (!p) return;
+  const privs = p.privileges || [];
+  let html = `<div style="display:flex;justify-content:flex-end;margin-bottom:12px;"><button class="btn btn-primary btn-sm" onclick="openAddPrivilege()">+ Add Privilege</button></div>`;
+  if (!privs.length) {
+    html += `<div class="empty-state"><svg viewBox="0 0 48 48" fill="none"><path d="M10 38V14a2 2 0 012-2h24a2 2 0 012 2v24a2 2 0 01-2 2H12a2 2 0 01-2-2z" stroke="#cbd5e1" stroke-width="2"/><path d="M18 22h12M18 28h8" stroke="#cbd5e1" stroke-width="2" stroke-linecap="round"/></svg><p>No privileges added yet.</p></div>`;
+  } else {
+    // Group by category
+    const grouped = {};
+    privs.forEach((pr, idx) => { const cat = pr.category||'General'; if (!grouped[cat]) grouped[cat]=[];grouped[cat].push({...pr,idx}); });
+    Object.entries(grouped).forEach(([cat,items]) => {
+      html += `<div style="margin-bottom:16px;"><div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;font-weight:700;color:var(--muted);margin-bottom:8px;">${cat}</div><div class="privilege-grid">`;
+      items.forEach(pr => {
+        html += `<div class="privilege-item">
+          <div class="priv-info">
+            <div class="priv-name">${pr.name}</div>
+            <div class="priv-meta">Approved: ${fmtDate(pr.approvalDate)} · ${pr.approvedBy||'—'}</div>
+            ${pr.notes?`<div class="priv-meta" style="font-style:italic;">${pr.notes}</div>`:''}
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+            <span class="priv-status priv-${pr.status||'approved'}">${(pr.status||'approved').replace('_',' ')}</span>
+            <div style="display:flex;gap:4px;">
+              <button class="icon-btn btn-sm" onclick="openEditPrivilege(${pr.idx})">✎</button>
+              <button class="icon-btn btn-sm" onclick="deletePrivilege(${pr.idx})" style="color:var(--danger)">🗑</button>
+            </div>
+          </div>
+        </div>`;
+      });
+      html += `</div></div>`;
+    });
+  }
+  document.getElementById('tabPrivileges').innerHTML = html;
+}
+
+// ─── OPPE Tab ─────────────────────────────────────────────────────────────────
+function renderOppeTab() {
+  const p = loadProviders().find(x => x.id === currentProviderId);
+  if (!p) return;
+  const o = p.oppe || {};
+  const nextReview = o.lastReview ? new Date(new Date(o.lastReview+'T12:00:00').getTime() + 180*86400000).toISOString().split('T')[0] : null;
+  const nextDays = daysUntil(nextReview);
+  const statusColors = { current:'var(--success)', new_applicant:'var(--teal)', fppe:'var(--danger)' };
+  const statusLabels = { current:'Current OPPE', new_applicant:'New Applicant', fppe:'FPPE Triggered' };
+  let html = `<div class="oppe-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;font-weight:700;color:var(--muted);">OPPE Status</div>
+        <div style="font-size:1.2rem;font-weight:800;color:${statusColors[o.status||'current']};margin-top:4px;">${statusLabels[o.status||'current']}</div>
+        ${o.lastReview?`<div style="font-size:.78rem;color:var(--muted);margin-top:4px;">Last review: ${fmtDate(o.lastReview)}</div>`:''}
+        ${nextReview?`<div style="font-size:.78rem;color:${nextDays<30?'var(--danger)':nextDays<60?'var(--warning)':'var(--muted)'};margin-top:2px;">Next review due: ${fmtDate(nextReview)} (${nextDays}d)</div>`:''}
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openOppeModal()">Update OPPE</button>
+    </div>
+    <div class="oppe-grid">
+      <div class="oppe-metric"><div class="oppe-metric-val">${o.caseVolume||'—'}</div><div class="oppe-metric-lbl">Case Volume</div></div>
+      <div class="oppe-metric"><div class="oppe-metric-val" style="color:${(o.complicationRate||0)>5?'var(--danger)':'var(--navy)'};">${o.complicationRate!==undefined?o.complicationRate+'%':'—'}</div><div class="oppe-metric-lbl">Complication Rate</div></div>
+      <div class="oppe-metric"><div class="oppe-metric-val" style="color:${(o.peerReviewScore||100)<80?'var(--danger)':(o.peerReviewScore||100)<90?'var(--warning)':'var(--navy)'};">${o.peerReviewScore!==undefined?o.peerReviewScore+'%':'—'}</div><div class="oppe-metric-lbl">Peer Review Score</div></div>
+    </div>
+    ${o.notes?`<div style="margin-top:14px;padding:10px 14px;background:#f8fafc;border-radius:8px;font-size:.8rem;color:var(--text);">${o.notes}</div>`:''}
+  </div>`;
+  if (o.status === 'fppe') {
+    html += `<div class="oppe-card" style="border-left:4px solid var(--danger);">
+      <div style="font-size:.8rem;font-weight:700;color:var(--danger);margin-bottom:10px;">⚑ FPPE IN PROGRESS</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:.82rem;">
+        <div><strong>Criteria:</strong><br>${o.fppeCriteria||'—'}</div>
+        <div><strong>Cases Required:</strong><br>${o.fppeCasesReq||'—'}</div>
+        <div><strong>Start Date:</strong><br>${fmtDate(o.fppeStart)}</div>
+        <div><strong>Expected Completion:</strong><br>${fmtDate(o.fppeEnd)}</div>
+      </div>
+    </div>`;
+  }
+  document.getElementById('tabOppe').innerHTML = html;
+}
+
+// ─── Notes Tab ────────────────────────────────────────────────────────────────
+function renderNotesTab() {
+  const p = loadProviders().find(x => x.id === currentProviderId);
+  if (!p) return;
+  document.getElementById('tabNotes').innerHTML = `
+    <div class="oppe-card">
+      <div style="font-size:.82rem;font-weight:700;margin-bottom:10px;">Provider Notes</div>
+      <textarea id="providerNotesArea" style="width:100%;min-height:150px;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:.85rem;outline:none;resize:vertical;">${p.notes||''}</textarea>
+      <div style="margin-top:10px;text-align:right;"><button class="btn btn-primary btn-sm" onclick="saveProviderNotes()">Save Notes</button></div>
+    </div>`;
+}
+
+function saveProviderNotes() {
+  const providers = loadProviders();
+  const p = providers.find(x => x.id === currentProviderId);
+  if (!p) return;
+  p.notes = document.getElementById('providerNotesArea').value;
+  saveProviders(providers);
+}
+
+// ─── Add/Edit Provider ────────────────────────────────────────────────────────
+function openAddProvider() {
+  editingProviderId = null;
+  document.getElementById('providerModalTitle').textContent = 'Add Provider';
+  ['pFirstName','pLastName','pCredentials','pSpecialty','pNPI','pEmail','pPhone','pNotes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('pType').value = '';
+  document.getElementById('pStatus').value = 'active';
+  document.getElementById('pHireDate').value = '';
+  document.getElementById('pInitialAppt').value = '';
+  document.getElementById('pReappt').value = '';
+  document.getElementById('pGovApproval').value = '';
+  openModal('providerModal');
+}
+
+function openEditProvider(id) {
+  const p = loadProviders().find(x => x.id === id);
+  if (!p) return;
+  editingProviderId = id;
+  document.getElementById('providerModalTitle').textContent = 'Edit Provider';
+  document.getElementById('pFirstName').value   = p.firstName || '';
+  document.getElementById('pLastName').value    = p.lastName  || '';
+  document.getElementById('pCredentials').value = p.credentials || '';
+  document.getElementById('pType').value        = p.type || '';
+  document.getElementById('pSpecialty').value   = p.specialty || '';
+  document.getElementById('pNPI').value         = p.npi || '';
+  document.getElementById('pStatus').value      = p.status || 'active';
+  document.getElementById('pHireDate').value    = p.hireDate || '';
+  document.getElementById('pInitialAppt').value = p.initialAppt || '';
+  document.getElementById('pReappt').value      = p.reappointment || '';
+  document.getElementById('pGovApproval').value = p.govBodyApproval || '';
+  document.getElementById('pEmail').value       = p.email || '';
+  document.getElementById('pPhone').value       = p.phone || '';
+  document.getElementById('pNotes').value       = p.notes || '';
+  openModal('providerModal');
+}
+
+function saveProvider() {
+  const firstName = document.getElementById('pFirstName').value.trim();
+  const lastName  = document.getElementById('pLastName').value.trim();
+  const type      = document.getElementById('pType').value;
+  if (!firstName || !lastName) { alert('First and last name are required.'); return; }
+  if (!type) { alert('Please select a provider type.'); return; }
+  const providers = loadProviders();
+  if (editingProviderId) {
+    const p = providers.find(x => x.id === editingProviderId);
+    if (p) {
+      p.firstName=firstName; p.lastName=lastName; p.credentials=document.getElementById('pCredentials').value.trim();
+      p.type=type; p.specialty=document.getElementById('pSpecialty').value.trim(); p.npi=document.getElementById('pNPI').value.trim();
+      p.status=document.getElementById('pStatus').value; p.hireDate=document.getElementById('pHireDate').value;
+      p.initialAppt=document.getElementById('pInitialAppt').value; p.reappointment=document.getElementById('pReappt').value;
+      p.govBodyApproval=document.getElementById('pGovApproval').value; p.email=document.getElementById('pEmail').value.trim();
+      p.phone=document.getElementById('pPhone').value.trim(); p.notes=document.getElementById('pNotes').value.trim();
+    }
+  } else {
+    providers.push({
+      id: uid(), firstName, lastName, credentials: document.getElementById('pCredentials').value.trim(),
+      type, specialty: document.getElementById('pSpecialty').value.trim(), npi: document.getElementById('pNPI').value.trim(),
+      status: document.getElementById('pStatus').value, hireDate: document.getElementById('pHireDate').value,
+      initialAppt: document.getElementById('pInitialAppt').value, reappointment: document.getElementById('pReappt').value,
+      govBodyApproval: document.getElementById('pGovApproval').value, email: document.getElementById('pEmail').value.trim(),
+      phone: document.getElementById('pPhone').value.trim(), notes: document.getElementById('pNotes').value.trim(),
+      credentials_data: {}, privileges: [], oppe: {}
+    });
+  }
+  saveProviders(providers);
+  closeModal('providerModal');
+  renderDashboard();
+  if (currentProviderId === editingProviderId) { renderDetailHeader(); renderCredTab(); }
+}
+
+function deleteProvider(id) {
+  const p = loadProviders().find(x => x.id === id);
+  if (!p) return;
+  if (!confirm(`Delete ${p.firstName} ${p.lastName}'s credentialing file? This cannot be undone.`)) return;
+  saveProviders(loadProviders().filter(x => x.id !== id));
+  if (currentProviderId === id) showDashboard();
+  else renderDashboard();
+}
+
+// ─── Edit Credential ──────────────────────────────────────────────────────────
+function openEditCred(key) {
+  const p = loadProviders().find(x => x.id === currentProviderId);
+  if (!p) return;
+  const sections = CRED_SECTIONS[p.type] || [];
+  const item = sections.flatMap(s => s.items).find(i => i.key === key);
+  if (!item) return;
+  editingCredKey = key;
+  document.getElementById('credModalTitle').textContent = item.label;
+  const data = (p.credentials || {})[key] || {};
+  let html = `<div style="font-size:.75rem;color:var(--muted);margin-bottom:12px;">${item.hint||''}</div>`;
+  if (item.hasNumber) html += `<div class="form-group"><label>Document / ID Number</label><input type="text" id="cNumber" value="${data.number||''}" placeholder="License #, DEA #, etc."/></div>`;
+  if (item.hasIssuer) html += `<div class="form-group"><label>Issuing State / Organization</label><input type="text" id="cIssuer" value="${data.issuer||''}" placeholder="State, Board name…"/></div>`;
+  if (item.extraLabel) html += `<div class="form-group"><label>${item.extraLabel}</label><input type="text" id="cExtra" value="${data.extra||''}" placeholder="${item.extraLabel}…"/></div>`;
+  if (item.isQuery) {
+    html += `<div class="form-group"><label>Date Last Queried / Checked</label><input type="date" id="cQueryDate" value="${data.queryDate||''}"/></div>`;
+    html += `<div style="font-size:.75rem;padding:8px 12px;background:var(--warning-bg);border-radius:6px;color:var(--warning);margin-bottom:10px;">⚠️ Flag if &gt; ${item.queryInterval} days since last check</div>`;
+  }
+  if (!item.hasExp && !item.isQuery) html += `<div class="form-group"><label>Value / Status</label><input type="text" id="cValue" value="${data.value||''}" placeholder="Status, result, or value…"/></div>`;
+  if (item.hasExp) html += `<div class="form-group"><label>Expiration Date</label><input type="date" id="cExpiration" value="${data.expiration||''}"/></div>`;
+  if (item.psv) {
+    html += `<div class="form-group"><label>Primary Source Verification (PSV)</label>
+      <select id="cPsvStatus"><option value="pending" ${(data.psvStatus||'pending')==='pending'?'selected':''}>Pending</option><option value="verified" ${data.psvStatus==='verified'?'selected':''}>Verified</option><option value="failed" ${data.psvStatus==='failed'?'selected':''}>Failed / Issue Found</option><option value="na" ${data.psvStatus==='na'?'selected':''}>N/A</option></select></div>`;
+    html += `<div class="form-row"><div class="form-group"><label>PSV Date</label><input type="date" id="cPsvDate" value="${data.psvDate||''}"/></div><div class="form-group"><label>Verified By</label><input type="text" id="cPsvBy" value="${data.psvBy||''}" placeholder="Name or initials"/></div></div>`;
+  }
+  html += `<div class="form-group"><label>Notes</label><textarea id="cNotes">${data.notes||''}</textarea></div>`;
+  document.getElementById('credModalBody').innerHTML = html;
+  openModal('credModal');
+}
+
+function saveCred() {
+  const providers = loadProviders();
+  const p = providers.find(x => x.id === currentProviderId);
+  if (!p) return;
+  if (!p.credentials) p.credentials = {};
+  const sections = CRED_SECTIONS[p.type] || [];
+  const item = sections.flatMap(s => s.items).find(i => i.key === editingCredKey);
+  if (!item) return;
+  const data = {};
+  if (item.hasNumber && document.getElementById('cNumber'))     data.number     = document.getElementById('cNumber').value.trim();
+  if (item.hasIssuer && document.getElementById('cIssuer'))     data.issuer     = document.getElementById('cIssuer').value.trim();
+  if (item.extraLabel && document.getElementById('cExtra'))     data.extra      = document.getElementById('cExtra').value.trim();
+  if (item.isQuery && document.getElementById('cQueryDate'))    data.queryDate  = document.getElementById('cQueryDate').value;
+  if (!item.hasExp && !item.isQuery && document.getElementById('cValue')) data.value = document.getElementById('cValue').value.trim();
+  if (item.hasExp && document.getElementById('cExpiration'))    data.expiration = document.getElementById('cExpiration').value;
+  if (item.psv) {
+    data.psvStatus = document.getElementById('cPsvStatus').value;
+    data.psvDate   = document.getElementById('cPsvDate').value;
+    data.psvBy     = document.getElementById('cPsvBy').value.trim();
+  }
+  data.notes = document.getElementById('cNotes').value.trim();
+  p.credentials[editingCredKey] = data;
+  saveProviders(providers);
+  closeModal('credModal');
+  renderCredTab();
+  renderDetailHeader();
+  renderStats();
+}
+
+// ─── Privileges ───────────────────────────────────────────────────────────────
+function openAddPrivilege() {
+  editingPrivIdx = null;
+  document.getElementById('privModalTitle').textContent = 'Add Privilege';
+  ['privName','privCategory','privApprovedBy','privNotes'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('privStatus').value = 'approved';
+  document.getElementById('privApprovalDate').value = '';
+  openModal('privModal');
+}
+function openEditPrivilege(idx) {
+  const p = loadProviders().find(x => x.id === currentProviderId);
+  if (!p) return;
+  const pr = (p.privileges||[])[idx];
+  if (!pr) return;
+  editingPrivIdx = idx;
+  document.getElementById('privModalTitle').textContent = 'Edit Privilege';
+  document.getElementById('privName').value         = pr.name||'';
+  document.getElementById('privCategory').value     = pr.category||'';
+  document.getElementById('privStatus').value       = pr.status||'approved';
+  document.getElementById('privApprovalDate').value = pr.approvalDate||'';
+  document.getElementById('privApprovedBy').value   = pr.approvedBy||'';
+  document.getElementById('privNotes').value        = pr.notes||'';
+  openModal('privModal');
+}
+function savePrivilege() {
+  const name = document.getElementById('privName').value.trim();
+  if (!name) { alert('Privilege name is required.'); return; }
+  const providers = loadProviders();
+  const p = providers.find(x => x.id === currentProviderId);
+  if (!p) return;
+  if (!p.privileges) p.privileges = [];
+  const pr = { name, category:document.getElementById('privCategory').value.trim(), status:document.getElementById('privStatus').value, approvalDate:document.getElementById('privApprovalDate').value, approvedBy:document.getElementById('privApprovedBy').value.trim(), notes:document.getElementById('privNotes').value.trim() };
+  if (editingPrivIdx !== null) p.privileges[editingPrivIdx] = pr;
+  else p.privileges.push(pr);
+  saveProviders(providers);
+  closeModal('privModal');
+  renderPrivilegesTab();
+}
+function deletePrivilege(idx) {
+  if (!confirm('Remove this privilege?')) return;
+  const providers = loadProviders();
+  const p = providers.find(x => x.id === currentProviderId);
+  if (!p) return;
+  p.privileges.splice(idx, 1);
+  saveProviders(providers);
+  renderPrivilegesTab();
+}
+
+// ─── OPPE ─────────────────────────────────────────────────────────────────────
+function openOppeModal() {
+  const p = loadProviders().find(x => x.id === currentProviderId);
+  if (!p) return;
+  const o = p.oppe || {};
+  document.getElementById('oppeStatus').value     = o.status||'current';
+  document.getElementById('oppeLastReview').value = o.lastReview||'';
+  document.getElementById('oppeCaseVol').value    = o.caseVolume!==undefined?o.caseVolume:'';
+  document.getElementById('oppeCompRate').value   = o.complicationRate!==undefined?o.complicationRate:'';
+  document.getElementById('oppePRScore').value    = o.peerReviewScore!==undefined?o.peerReviewScore:'';
+  document.getElementById('fppeCriteria').value   = o.fppeCriteria||'';
+  document.getElementById('fppeStart').value      = o.fppeStart||'';
+  document.getElementById('fppeCasesReq').value   = o.fppeCasesReq||'';
+  document.getElementById('fppeEnd').value        = o.fppeEnd||'';
+  document.getElementById('oppeNotes').value      = o.notes||'';
+  openModal('oppeModal');
+}
+function saveOppe() {
+  const providers = loadProviders();
+  const p = providers.find(x => x.id === currentProviderId);
+  if (!p) return;
+  p.oppe = {
+    status:          document.getElementById('oppeStatus').value,
+    lastReview:      document.getElementById('oppeLastReview').value,
+    caseVolume:      parseInt(document.getElementById('oppeCaseVol').value)||0,
+    complicationRate:parseFloat(document.getElementById('oppeCompRate').value)||0,
+    peerReviewScore: parseFloat(document.getElementById('oppePRScore').value)||0,
+    fppeCriteria:    document.getElementById('fppeCriteria').value.trim(),
+    fppeStart:       document.getElementById('fppeStart').value,
+    fppeCasesReq:    document.getElementById('fppeCasesReq').value,
+    fppeEnd:         document.getElementById('fppeEnd').value,
+    notes:           document.getElementById('oppeNotes').value.trim(),
+  };
+  saveProviders(providers);
+  closeModal('oppeModal');
+  renderOppeTab();
+}
+
+// ─── Export ───────────────────────────────────────────────────────────────────
+function exportCSV() {
+  const providers = loadProviders();
+  const fac = localStorage.getItem('cred_facility')||'';
+  const rows = [['Facility','Provider','Type','Specialty','NPI','Credential','Value/Number','Issuer','Expiration','PSV Status','Days Until Expiration','Alert Status']];
+  providers.forEach(p => {
+    const sections = CRED_SECTIONS[p.type] || [];
+    sections.flatMap(s=>s.items).forEach(item => {
+      const data = (p.credentials||{})[item.key]||{};
+      const days = item.hasExp ? daysUntil(data.expiration) : null;
+      const status = getItemStatus(item, data.number||data.queryDate||data.expiration||data.value ? data : null);
+      rows.push([fac,`${p.lastName}, ${p.firstName}`,TYPE_LABELS[p.type],p.specialty||'',p.npi||'',item.label,
+        [data.number,data.issuer,data.value,data.extra].filter(Boolean).join(' | '),data.issuer||'',
+        item.isQuery?data.queryDate||'':data.expiration||'',data.psvStatus||'',days!==null?days:'N/A',status]);
+    });
+  });
+  const csv = rows.map(r => r.map(v=>`"${(v||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download = `credentialing-${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+}
+
+// ─── Modal Helpers ────────────────────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+document.addEventListener('keydown', e => { if (e.key==='Escape') ['credModal','providerModal','privModal','oppeModal'].forEach(closeModal); });
+
+// ─── Clock ────────────────────────────────────────────────────────────────────
+function startClock() {
+  function tick() {
+    const now = new Date();
+    document.getElementById('hdrDateTime').innerHTML = now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'})+'<br>'+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  }
+  tick(); setInterval(tick, 1000);
+}
+
+function renderAll() { renderDashboard(); }
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+(function init() {
+  const authed = sessionStorage.getItem('cred_authed');
+  const saved  = localStorage.getItem('cred_facility')||'';
+  document.getElementById('lgFacility').value = saved;
+  if (authed==='1' && saved) {
+    document.getElementById('loginGate').classList.add('hidden');
+    applyFacility(saved); startClock(); renderAll();
+  } else {
+    saved ? document.getElementById('lgPassword').focus() : document.getElementById('lgFacility').focus();
+  }
+})();
+</script>
+</body>
+</html>
